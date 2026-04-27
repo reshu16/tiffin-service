@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Delivery Dashboard — TiffinBox{% endblock %}
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="d-flex">
+    <div class="sidebar d-flex flex-column p-3" style="width:220px;min-width:220px">
+        <div class="text-white text-center py-3 mb-3">
+            <div style="font-size:2rem">🛵</div>
+            <div class="fw-bold">Delivery Panel</div>
+        </div>
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link active" href="/delivery/dashboard">
+                <i class="bi bi-house me-2"></i>My Deliveries</a>
+        </nav>
+        <div class="mt-auto">
+            <a class="nav-link text-danger" href="#" onclick="logout()">
+                <i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+        </div>
+    </div>
+
+    <div class="flex-grow-1 p-4" style="background:#f8f9fa;min-height:100vh">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0">My Deliveries</h4>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm" id="avail-btn" onclick="toggleAvailability()">
+                </button>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadDeliveries()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-3" id="delivery-list">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+if (!isLogged() || getUser()?.role !== 'delivery')
+    window.location.href = '/login';
+
+async function loadDeliveries() {
+    try {
+        const data = await apiRequest('/delivery/my', 'GET', null, true);
+        const el   = document.getElementById('delivery-list');
+
+        if (!data.deliveries.length) {
+            el.innerHTML = `<div class="col-12 text-center py-5 text-muted">
+                <i class="bi bi-truck" style="font-size:4rem"></i>
+                <p class="mt-3">No deliveries assigned yet</p></div>`;
+            return;
+        }
+
+        el.innerHTML = data.deliveries.map(d => `
+            <div class="col-md-6">
+                <div class="card shadow-sm p-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="fw-bold text-primary">Order #${d.order_id}</span>
+                        ${statusBadge(d.status)}
+                    </div>
+                    <p class="text-muted small mb-1">
+                        <i class="bi bi-clock me-1"></i>Assigned: ${formatDate(d.assigned_at)}
+                    </p>
+                    ${d.delivered_at ? `
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Delivered: ${formatDate(d.delivered_at)}
+                    </p>` : ''}
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        ${d.status === 'assigned' ? `
+                        <button class="btn btn-primary btn-sm"
+                                onclick="updateDelivery(${d.delivery_id},'picked_up')">
+                            Picked Up
+                        </button>` : ''}
+                        ${d.status === 'picked_up' ? `
+                        <button class="btn btn-info btn-sm"
+                                onclick="updateDelivery(${d.delivery_id},'on_the_way')">
+                            On The Way
+                        </button>` : ''}
+                        ${d.status === 'on_the_way' ? `
+                        <button class="btn btn-success btn-sm"
+                                onclick="updateDelivery(${d.delivery_id},'delivered')">
+                            Mark Delivered ✓
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                onclick="updateDelivery(${d.delivery_id},'failed')">
+                            Failed
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>`).join('');
+    } catch (e) { showToast('Could not load deliveries', 'danger'); }
+}
+
+async function updateDelivery(id, status) {
+    try {
+        await apiRequest(`/delivery/${id}/status`, 'PUT', { status }, true);
+        showToast(`Updated to: ${status}`, 'success');
+        loadDeliveries();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+async function toggleAvailability() {
+    try {
+        const data = await apiRequest('/delivery/agents/availability', 'PUT', null, true);
+        const btn  = document.getElementById('avail-btn');
+        btn.className = data.is_available
+            ? 'btn btn-success btn-sm' : 'btn btn-secondary btn-sm';
+        btn.textContent = data.is_available ? '🟢 Available' : '🔴 Unavailable';
+        showToast(data.message, 'success');
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+// Set initial button state
+document.getElementById('avail-btn').textContent = '🟢 Available';
+document.getElementById('avail-btn').className   = 'btn btn-success btn-sm';
+
+loadDeliveries();
+</script>
+{% endblock %}

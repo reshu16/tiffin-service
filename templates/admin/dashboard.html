@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — TiffinBox{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="d-flex">
+
+    <!-- Sidebar -->
+    <div class="sidebar d-flex flex-column p-3" style="width:240px;min-width:240px">
+        <div class="text-white text-center py-3 mb-3">
+            <div style="font-size:2rem">🍱</div>
+            <div class="fw-bold fs-5">TiffinBox</div>
+            <small class="text-muted">Admin Panel</small>
+        </div>
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link active" href="/admin/dashboard">
+                <i class="bi bi-speedometer2 me-2"></i>Dashboard</a>
+            <a class="nav-link" href="#" onclick="showSection('orders')">
+                <i class="bi bi-bag me-2"></i>All Orders</a>
+            <a class="nav-link" href="#" onclick="showSection('users')">
+                <i class="bi bi-people me-2"></i>Users</a>
+            <a class="nav-link" href="#" onclick="showSection('menu')">
+                <i class="bi bi-grid me-2"></i>Menu</a>
+            <a class="nav-link" href="#" onclick="showSection('agents')">
+                <i class="bi bi-truck me-2"></i>Agents</a>
+            <a class="nav-link" href="#" onclick="showSection('revenue')">
+                <i class="bi bi-bar-chart me-2"></i>Revenue</a>
+        </nav>
+        <div class="mt-auto">
+            <a class="nav-link text-danger" href="#" onclick="logout()">
+                <i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow-1 p-4" style="background:#f8f9fa;min-height:100vh;overflow-y:auto">
+
+        <!-- Stats Section -->
+        <div id="section-stats">
+            <h4 class="fw-bold mb-4">Dashboard Overview</h4>
+            <div class="row g-3 mb-4" id="admin-stats">
+                <div class="col-12 text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="section-orders" style="display:none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">All Orders</h4>
+                <select class="form-select w-auto" id="order-status-filter"
+                        onchange="loadAllOrders()">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="out_for_delivery">Out for Delivery</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div id="admin-orders-table"></div>
+        </div>
+
+        <!-- Users Section -->
+        <div id="section-users" style="display:none">
+            <h4 class="fw-bold mb-4">All Users</h4>
+            <div id="admin-users-table"></div>
+        </div>
+
+        <!-- Menu Section -->
+        <div id="section-menu" style="display:none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">Menu Management</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal"
+                        data-bs-target="#addItemModal">
+                    <i class="bi bi-plus me-2"></i>Add Item
+                </button>
+            </div>
+            <div id="admin-menu-table"></div>
+        </div>
+
+        <!-- Agents Section -->
+        <div id="section-agents" style="display:none">
+            <h4 class="fw-bold mb-4">Delivery Agents</h4>
+            <div id="admin-agents-table"></div>
+        </div>
+
+        <!-- Revenue Section -->
+        <div id="section-revenue" style="display:none">
+            <h4 class="fw-bold mb-4">Revenue Report (Last 7 Days)</h4>
+            <div id="admin-revenue-table"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add Menu Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Add Menu Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Item Name</label>
+                    <input type="text" id="add-name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Description</label>
+                    <textarea id="add-desc" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col">
+                        <label class="form-label fw-semibold">Price (₹)</label>
+                        <input type="number" id="add-price" class="form-control" min="0">
+                    </div>
+                    <div class="col">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select id="add-category" class="form-select">
+                            <option value="veg">Veg</option>
+                            <option value="non-veg">Non-Veg</option>
+                            <option value="special">Special</option>
+                            <option value="dessert">Dessert</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Image URL (optional)</label>
+                    <input type="text" id="add-image" class="form-control"
+                           placeholder="https://...">
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary px-4" onclick="addMenuItem()">Add Item</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+if (!isLogged() || getUser()?.role !== 'admin') window.location.href = '/login';
+
+function showSection(name) {
+    ['stats','orders','users','menu','agents','revenue'].forEach(s => {
+        document.getElementById(`section-${s}`).style.display = 'none';
+    });
+    document.getElementById(`section-${name}`).style.display = 'block';
+    document.getElementById('section-stats').style.display =
+        name === 'stats' ? 'block' : 'none';
+
+    if (name === 'orders')  loadAllOrders();
+    if (name === 'users')   loadUsers();
+    if (name === 'menu')    loadAdminMenu();
+    if (name === 'agents')  loadAgents();
+    if (name === 'revenue') loadRevenue();
+
+    document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+}
+
+// ── Dashboard Stats ──────────────────────────────────────────
+async function loadStats() {
+    try {
+        const data  = await apiRequest('/admin/dashboard', 'GET', null, true);
+        const stats = data.stats;
+        document.getElementById('admin-stats').innerHTML = `
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center bg-primary text-white">
+                    <div class="stat-icon">👥</div>
+                    <div class="display-6 fw-bold mt-2">${stats.total_users}</div>
+                    <div class="small opacity-75">Total Customers</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center bg-success text-white">
+                    <div class="stat-icon">📦</div>
+                    <div class="display-6 fw-bold mt-2">${stats.today_orders}</div>
+                    <div class="small opacity-75">Today's Orders</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center bg-warning text-white">
+                    <div class="stat-icon">⏳</div>
+                    <div class="display-6 fw-bold mt-2">${stats.pending_orders}</div>
+                    <div class="small opacity-75">Pending Orders</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center bg-info text-white">
+                    <div class="stat-icon">💰</div>
+                    <div class="display-6 fw-bold mt-2">${formatRupee(stats.total_revenue)}</div>
+                    <div class="small opacity-75">Total Revenue</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center">
+                    <div class="stat-icon text-success">✅</div>
+                    <div class="display-6 fw-bold mt-2">${stats.delivered_orders}</div>
+                    <div class="text-muted small">Delivered</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center">
+                    <div class="stat-icon text-danger">❌</div>
+                    <div class="display-6 fw-bold mt-2">${stats.cancelled_orders}</div>
+                    <div class="text-muted small">Cancelled</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center">
+                    <div class="stat-icon text-primary">🛵</div>
+                    <div class="display-6 fw-bold mt-2">${stats.available_agents}</div>
+                    <div class="text-muted small">Available Agents</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card stat-card shadow-sm p-4 text-center">
+                    <div class="stat-icon text-warning">💵</div>
+                    <div class="display-6 fw-bold mt-2">${formatRupee(stats.today_revenue)}</div>
+                    <div class="text-muted small">Today Revenue</div>
+                </div>
+            </div>`;
+    } catch (e) { showToast('Could not load stats', 'danger'); }
+}
+
+// ── All Orders ───────────────────────────────────────────────
+async function loadAllOrders() {
+    const status = document.getElementById('order-status-filter')?.value || '';
+    const url    = status ? `/orders/all?status=${status}` : '/orders/all';
+    try {
+        const data = await apiRequest(url, 'GET', null, true);
+        document.getElementById('admin-orders-table').innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>#ID</th><th>Customer</th><th>Items</th>
+                            <th>Amount</th><th>Status</th><th>Date</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.orders.map(o => `
+                        <tr>
+                            <td class="fw-bold text-primary">#${o.order_id}</td>
+                            <td>User #${o.user_id}</td>
+                            <td>${o.items?.length || 0} item(s)</td>
+                            <td class="fw-bold">${formatRupee(o.total_amount)}</td>
+                            <td>${statusBadge(o.status)}</td>
+                            <td class="text-muted small">${formatDate(o.order_date)}</td>
+                            <td>
+                                <select class="form-select form-select-sm w-auto"
+                                        onchange="updateOrderStatus(${o.order_id}, this.value)">
+                                    <option value="">Update</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="preparing">Preparing</option>
+                                    <option value="out_for_delivery">Out for Delivery</option>
+                                    <option value="delivered">Delivered</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch (e) { showToast('Could not load orders', 'danger'); }
+}
+
+async function updateOrderStatus(orderId, status) {
+    if (!status) return;
+    try {
+        await apiRequest(`/orders/${orderId}/status`, 'PUT', { status }, true);
+        showToast(`Order #${orderId} updated to ${status}`, 'success');
+        loadAllOrders();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+// ── Users ────────────────────────────────────────────────────
+async function loadUsers() {
+    try {
+        const data = await apiRequest('/admin/users', 'GET', null, true);
+        document.getElementById('admin-users-table').innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>#</th><th>Name</th><th>Email</th>
+                            <th>Phone</th><th>Role</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.users.map(u => `
+                        <tr>
+                            <td>${u.user_id}</td>
+                            <td class="fw-semibold">${u.full_name}</td>
+                            <td class="text-muted small">${u.email}</td>
+                            <td>${u.phone}</td>
+                            <td><span class="badge bg-secondary">${u.role}</span></td>
+                            <td>
+                                <span class="badge ${u.is_active?'bg-success':'bg-danger'}">
+                                    ${u.is_active?'Active':'Inactive'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning"
+                                        onclick="toggleUser(${u.user_id})">
+                                    ${u.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch (e) { showToast('Could not load users', 'danger'); }
+}
+
+async function toggleUser(userId) {
+    try {
+        await apiRequest(`/admin/users/${userId}/toggle`, 'PUT', null, true);
+        showToast('User status updated', 'success');
+        loadUsers();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+// ── Menu Management ──────────────────────────────────────────
+async function loadAdminMenu() {
+    try {
+        const data = await apiRequest('/menu/all', 'GET', null, true);
+        document.getElementById('admin-menu-table').innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>#</th><th>Name</th><th>Category</th>
+                            <th>Price</th><th>Available</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.menu.map(item => `
+                        <tr>
+                            <td>${item.item_id}</td>
+                            <td class="fw-semibold">${item.name}</td>
+                            <td><span class="badge badge-${item.category}">${item.category}</span></td>
+                            <td class="fw-bold text-primary">${formatRupee(item.price)}</td>
+                            <td>
+                                <span class="badge ${item.is_available?'bg-success':'bg-secondary'}">
+                                    ${item.is_available?'Available':'Hidden'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning me-1"
+                                        onclick="toggleItem(${item.item_id}, ${!item.is_available})">
+                                    ${item.is_available ? 'Hide' : 'Show'}
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="deleteItem(${item.item_id})">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch (e) { showToast('Could not load menu', 'danger'); }
+}
+
+async function addMenuItem() {
+    try {
+        await apiRequest('/menu/', 'POST', {
+            name:        document.getElementById('add-name').value,
+            description: document.getElementById('add-desc').value,
+            price:       parseFloat(document.getElementById('add-price').value),
+            category:    document.getElementById('add-category').value,
+            image_url:   document.getElementById('add-image').value
+        }, true);
+        bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+        showToast('Menu item added!', 'success');
+        loadAdminMenu();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+async function toggleItem(id, available) {
+    try {
+        await apiRequest(`/menu/${id}`, 'PUT', { is_available: available }, true);
+        showToast('Item updated', 'success');
+        loadAdminMenu();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+async function deleteItem(id) {
+    if (!confirm('Delete this menu item?')) return;
+    try {
+        await apiRequest(`/menu/${id}`, 'DELETE', null, true);
+        showToast('Item deleted', 'success');
+        loadAdminMenu();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+// ── Agents ───────────────────────────────────────────────────
+async function loadAgents() {
+    try {
+        const data = await apiRequest('/delivery/agents', 'GET', null, true);
+        document.getElementById('admin-agents-table').innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>#</th><th>Name</th><th>Phone</th>
+                            <th>Vehicle</th><th>Rating</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.agents.map(a => `
+                        <tr>
+                            <td>${a.agent_id}</td>
+                            <td class="fw-semibold">${a.name || '—'}</td>
+                            <td>${a.phone || '—'}</td>
+                            <td>${a.vehicle_number}</td>
+                            <td>⭐ ${a.rating}</td>
+                            <td>
+                                <span class="badge ${a.is_available?'bg-success':'bg-warning'}">
+                                    ${a.is_available ? 'Available' : 'On Delivery'}
+                                </span>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch (e) { showToast('Could not load agents', 'danger'); }
+}
+
+// ── Revenue Report ───────────────────────────────────────────
+async function loadRevenue() {
+    try {
+        const data = await apiRequest('/admin/reports/revenue?days=7', 'GET', null, true);
+        document.getElementById('admin-revenue-table').innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>Date</th><th>Orders</th><th>Revenue</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.report.map(r => `
+                        <tr>
+                            <td class="fw-semibold">${r.date}</td>
+                            <td>${r.orders}</td>
+                            <td class="fw-bold text-primary">${formatRupee(r.revenue)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch (e) { showToast('Could not load revenue', 'danger'); }
+}
+
+loadStats();
+</script>
+{% endblock %}

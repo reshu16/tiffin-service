@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Menu — TiffinBox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2 class="fw-bold">Our Menu</h2>
+            <p class="text-muted">Fresh meals prepared daily</p>
+        </div>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <button class="btn btn-primary filter-btn" onclick="filterMenu('all')">All</button>
+        <button class="btn btn-outline-success filter-btn" onclick="filterMenu('veg')">🥦 Veg</button>
+        <button class="btn btn-outline-danger filter-btn" onclick="filterMenu('non-veg')">🍗 Non-Veg</button>
+        <button class="btn btn-outline-warning filter-btn" onclick="filterMenu('special')">⭐ Special</button>
+        <button class="btn btn-outline-purple filter-btn" onclick="filterMenu('dessert')">🍮 Dessert</button>
+    </div>
+
+    <!-- Menu Grid -->
+    <div class="row g-4" id="menu-grid">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2">Loading menu...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Sidebar -->
+<div class="offcanvas offcanvas-end" id="cartOffcanvas" style="width:380px">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold">
+            <i class="bi bi-cart3 me-2"></i>Your Cart
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column">
+        <div id="cart-items" class="flex-grow-1"></div>
+        <div class="border-top pt-3 mt-3">
+            <div class="d-flex justify-content-between fw-bold fs-5 mb-3">
+                <span>Total:</span>
+                <span id="cart-total" class="text-primary">₹0.00</span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Delivery Address</label>
+                <textarea id="delivery-address" class="form-control" rows="2"
+                          placeholder="Enter delivery address"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Special Notes</label>
+                <input type="text" id="special-notes" class="form-control"
+                       placeholder="Less spicy, no onion, etc.">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Payment Method</label>
+                <select id="payment-method" class="form-select">
+                    <option value="cod">Cash on Delivery</option>
+                    <option value="razorpay">Online Payment</option>
+                </select>
+            </div>
+            <button class="btn btn-primary w-100 py-2 fw-semibold"
+                    onclick="placeOrder()" id="place-order-btn">
+                <i class="bi bi-check-circle me-2"></i>Place Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Floating Button -->
+<button class="btn btn-primary rounded-circle shadow position-fixed"
+        style="bottom:30px;right:30px;width:60px;height:60px;font-size:1.4rem;z-index:1000"
+        data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
+    <i class="bi bi-cart3"></i>
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+          id="cart-badge" style="display:none">0</span>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allItems = [];
+let cart     = {};
+
+async function loadMenu(category = 'all') {
+    const grid = document.getElementById('menu-grid');
+    grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+    try {
+        const url  = category === 'all' ? '/menu/' : `/menu/?category=${category}`;
+        const data = await apiRequest(url);
+        allItems   = data.menu;
+        renderMenu(allItems);
+    } catch (e) {
+        grid.innerHTML = '<p class="text-center text-muted">Could not load menu.</p>';
+    }
+}
+
+function renderMenu(items) {
+    const grid = document.getElementById('menu-grid');
+    if (!items.length) {
+        grid.innerHTML = '<p class="text-center text-muted py-5">No items in this category.</p>';
+        return;
+    }
+    grid.innerHTML = items.map(item => `
+        <div class="col-md-4 col-sm-6">
+            <div class="card shadow-sm menu-card h-100">
+                <div class="position-relative">
+                    <img src="${item.image_url || '/static/images/default-food.jpg'}"
+                         class="card-img-top" alt="${item.name}"
+                         onerror="this.src='/static/images/default-food.jpg'">
+                    <span class="badge badge-${item.category.replace('-','').toLowerCase()}
+                          position-absolute top-0 end-0 m-2 px-2 py-1 text-capitalize">
+                        ${item.category}
+                    </span>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title fw-bold">${item.name}</h5>
+                    <p class="card-text text-muted small flex-grow-1">${item.description || ''}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="fs-5 fw-bold text-primary">${formatRupee(item.price)}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            ${cart[item.item_id] ? `
+                            <div class="input-group input-group-sm" style="width:110px">
+                                <button class="btn btn-outline-secondary"
+                                        onclick="updateCart(${item.item_id}, -1)">−</button>
+                                <span class="form-control text-center">${cart[item.item_id]}</span>
+                                <button class="btn btn-outline-secondary"
+                                        onclick="updateCart(${item.item_id}, 1)">+</button>
+                            </div>` : `
+                            <button class="btn btn-primary btn-sm px-3"
+                                    onclick="addToCart(${item.item_id})">
+                                <i class="bi bi-plus me-1"></i>Add
+                            </button>`}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addToCart(itemId) {
+    cart[itemId] = (cart[itemId] || 0) + 1;
+    updateCartUI();
+    renderMenu(allItems);
+}
+
+function updateCart(itemId, delta) {
+    cart[itemId] = (cart[itemId] || 0) + delta;
+    if (cart[itemId] <= 0) delete cart[itemId];
+    updateCartUI();
+    renderMenu(allItems);
+}
+
+function updateCartUI() {
+    const items   = Object.entries(cart);
+    const badge   = document.getElementById('cart-badge');
+    const total   = document.getElementById('cart-total');
+    const cartDiv = document.getElementById('cart-items');
+
+    const count = items.reduce((s,[,q]) => s + q, 0);
+    badge.style.display = count > 0 ? 'block' : 'none';
+    badge.textContent   = count;
+
+    if (!items.length) {
+        cartDiv.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-cart-x" style="font-size:3rem"></i>
+                <p class="mt-3">Your cart is empty</p>
+            </div>`;
+        total.textContent = '₹0.00';
+        return;
+    }
+
+    let totalAmt = 0;
+    cartDiv.innerHTML = items.map(([id, qty]) => {
+        const item    = allItems.find(i => i.item_id == id);
+        if (!item) return '';
+        const subtotal = item.price * qty;
+        totalAmt      += subtotal;
+        return `
+            <div class="d-flex align-items-center gap-3 mb-3 p-2 border rounded-3">
+                <div class="flex-grow-1">
+                    <div class="fw-semibold small">${item.name}</div>
+                    <div class="text-muted small">${formatRupee(item.price)} × ${qty}</div>
+                </div>
+                <div class="fw-bold text-primary">${formatRupee(subtotal)}</div>
+                <button class="btn btn-sm btn-outline-danger rounded-circle"
+                        style="width:28px;height:28px;padding:0"
+                        onclick="updateCart(${id}, -${qty})">×</button>
+            </div>`;
+    }).join('');
+
+    total.textContent = formatRupee(totalAmt);
+
+    // Pre-fill address from profile
+    const user = getUser();
+    if (user?.address) {
+        const addr = document.getElementById('delivery-address');
+        if (!addr.value) addr.value = user.address;
+    }
+}
+
+async function placeOrder() {
+    if (!isLogged()) {
+        showToast('Please login to place an order', 'warning');
+        window.location.href = '/login';
+        return;
+    }
+
+    const items   = Object.entries(cart);
+    if (!items.length) { showToast('Cart is empty', 'danger'); return; }
+
+    const address = document.getElementById('delivery-address').value.trim();
+    if (!address) { showToast('Please enter delivery address', 'danger'); return; }
+
+    const method  = document.getElementById('payment-method').value;
+    const btn     = document.getElementById('place-order-btn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Placing...';
+    btn.disabled  = true;
+
+    try {
+        const orderData = await apiRequest('/orders/', 'POST', {
+            delivery_address: address,
+            special_notes:    document.getElementById('special-notes').value,
+            items: items.map(([item_id, quantity]) => ({ item_id: parseInt(item_id), quantity }))
+        }, true);
+
+        // Create payment record
+        if (method === 'cod') {
+            await apiRequest('/payment/cod', 'POST',
+                             { order_id: orderData.order.order_id }, true);
+        } else {
+            await apiRequest('/payment/create', 'POST',
+                             { order_id: orderData.order.order_id, method }, true);
+        }
+
+        cart = {};
+        updateCartUI();
+        bootstrap.Offcanvas.getInstance(
+            document.getElementById('cartOffcanvas'))?.hide();
+
+        showToast('Order placed successfully! 🎉', 'success');
+        setTimeout(() => window.location.href = '/orders', 1500);
+
+    } catch (err) {
+        showToast(err.message || 'Failed to place order', 'danger');
+        btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Place Order';
+        btn.disabled  = false;
+    }
+}
+
+function filterMenu(category) {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.className = b.className.replace('btn-primary','btn-outline-secondary');
+    });
+    event.target.className = event.target.className
+        .replace('btn-outline-secondary','btn-primary')
+        .replace('btn-outline-success','btn-primary')
+        .replace('btn-outline-danger','btn-primary')
+        .replace('btn-outline-warning','btn-primary');
+    loadMenu(category);
+}
+
+loadMenu();
+</script>
+{% endblock %}

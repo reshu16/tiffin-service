@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}My Orders — TiffinBox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2 class="fw-bold">My Orders</h2>
+            <p class="text-muted">Track all your tiffin orders</p>
+        </div>
+        <div class="col-auto">
+            <a href="/menu" class="btn btn-primary">
+                <i class="bi bi-plus me-2"></i>New Order
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-pills mb-4" id="order-tabs">
+        <li class="nav-item">
+            <button class="nav-link active" onclick="filterOrders('all', this)">All</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterOrders('pending', this)">Pending</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterOrders('preparing', this)">Preparing</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterOrders('out_for_delivery', this)">Out for Delivery</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterOrders('delivered', this)">Delivered</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="filterOrders('cancelled', this)">Cancelled</button>
+        </li>
+    </ul>
+
+    <div id="orders-list">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+if (!isLogged()) window.location.href = '/login';
+
+let allOrders = [];
+
+async function loadOrders() {
+    try {
+        const data = await apiRequest('/orders/my', 'GET', null, true);
+        allOrders  = data.orders;
+        renderOrders(allOrders);
+    } catch (e) {
+        document.getElementById('orders-list').innerHTML =
+            '<p class="text-center text-muted">Could not load orders.</p>';
+    }
+}
+
+function renderOrders(orders) {
+    const el = document.getElementById('orders-list');
+    if (!orders.length) {
+        el.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-bag-x" style="font-size:4rem"></i>
+                <p class="mt-3 fs-5">No orders found</p>
+                <a href="/menu" class="btn btn-primary mt-2">Order Now</a>
+            </div>`;
+        return;
+    }
+
+    el.innerHTML = orders.map(order => `
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-2 text-center">
+                        <div class="fw-bold text-primary fs-5">#${order.order_id}</div>
+                        <div class="text-muted small">${formatDate(order.order_date)}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="fw-semibold mb-1">
+                            ${order.items?.map(i => `${i.item_name} ×${i.quantity}`).join(', ') || 'Items'}
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-geo-alt me-1"></i>${order.delivery_address}
+                        </div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <div class="fw-bold fs-5 text-primary">${formatRupee(order.total_amount)}</div>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        ${statusBadge(order.status)}
+                    </div>
+                    <div class="col-md-2 text-end">
+                        ${['pending','confirmed'].includes(order.status) ? `
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="cancelOrder(${order.order_id})">
+                            <i class="bi bi-x me-1"></i>Cancel
+                        </button>` : ''}
+                        ${order.status === 'delivered' ? `
+                        <button class="btn btn-sm btn-outline-warning"
+                                onclick="openReview(${order.order_id})">
+                            <i class="bi bi-star me-1"></i>Review
+                        </button>` : ''}
+                    </div>
+                </div>
+                ${order.special_notes ? `
+                <div class="mt-2 p-2 bg-light rounded small text-muted">
+                    <i class="bi bi-chat-left-text me-1"></i>${order.special_notes}
+                </div>` : ''}
+            </div>
+        </div>`).join('');
+}
+
+function filterOrders(status, btn) {
+    document.querySelectorAll('#order-tabs .nav-link')
+            .forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filtered = status === 'all' ? allOrders
+                   : allOrders.filter(o => o.status === status);
+    renderOrders(filtered);
+}
+
+async function cancelOrder(id) {
+    if (!confirm('Cancel this order?')) return;
+    try {
+        await apiRequest(`/orders/${id}/cancel`, 'PUT', null, true);
+        showToast('Order cancelled', 'warning');
+        loadOrders();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+function openReview(orderId) {
+    const rating  = prompt('Rate your order (1-5):');
+    const comment = prompt('Leave a comment (optional):');
+    if (!rating) return;
+    apiRequest('/orders/' + orderId + '/review', 'POST',
+               { rating: parseInt(rating), comment }, true)
+        .then(() => showToast('Review submitted! Thank you 🙏', 'success'))
+        .catch(e  => showToast(e.message, 'danger'));
+}
+
+loadOrders();
+</script>
+{% endblock %}

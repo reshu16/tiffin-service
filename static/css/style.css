@@ -1,0 +1,87 @@
+/* ── Global ── */
+* { font-family: 'Poppins', sans-serif; }
+body { background-color: #f8f9fa; }
+
+/* ── Navbar ── */
+.navbar-brand { letter-spacing: 1px; }
+
+/* ── Hero Section ── */
+.hero-section {
+    background: linear-gradient(135deg, #fd7e14 0%, #e85d04 50%, #dc3545 100%);
+    min-height: 85vh;
+    display: flex;
+    align-items: center;
+}
+.hero-section h1 { font-size: 3.2rem; font-weight: 700; }
+
+/* ── Cards ── */
+.card { border: none; border-radius: 16px; transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.1) !important; }
+.menu-card img { height: 200px; object-fit: cover; border-radius: 16px 16px 0 0; }
+
+/* ── Badges ── */
+.badge-veg    { background-color: #198754; }
+.badge-nonveg { background-color: #dc3545; }
+.badge-special{ background-color: #fd7e14; }
+.badge-dessert{ background-color: #6f42c1; }
+
+/* ── Buttons ── */
+.btn { border-radius: 10px; font-weight: 500; }
+.btn-primary   { background: #e85d04; border-color: #e85d04; }
+.btn-primary:hover { background: #dc3545; border-color: #dc3545; }
+
+/* ── Order Status Pills ── */
+.status-pending          { background: #fff3cd; color: #856404; }
+.status-confirmed        { background: #cff4fc; color: #055160; }
+.status-preparing        { background: #d1ecf1; color: #0c5460; }
+.status-out_for_delivery { background: #cfe2ff; color: #084298; }
+.status-delivered        { background: #d1e7dd; color: #0f5132; }
+.status-cancelled        { background: #f8d7da; color: #842029; }
+
+/* ── Dashboard Stat Cards ── */
+.stat-card { border-radius: 16px; border: none; }
+.stat-card .stat-icon { font-size: 2.5rem; opacity: 0.8; }
+
+/* ── Sidebar ── */
+.sidebar { min-height: 100vh; background: #1a1a2e; }
+.sidebar .nav-link { color: #adb5bd; border-radius: 10px; margin: 2px 8px; }
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active { background: #e85d04; color: #fff; }
+.sidebar .nav-link i { width: 20px; }
+
+/* ── Forms ── */
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 1.5px solid #dee2e6;
+    padding: 10px 15px;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #e85d04;
+    box-shadow: 0 0 0 0.2rem rgba(232,93,4,0.15);
+}
+
+/* ── Auth Pages ── */
+.auth-card { max-width: 450px; margin: 80px auto; border-radius: 20px; }
+.auth-card .card-body { padding: 40px; }
+
+/* ── Toast Notifications ── */
+.toast-container { z-index: 9999; }
+
+/* ── Loader ── */
+.spinner-overlay {
+    position: fixed; top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(255,255,255,0.7);
+    display: flex; align-items: center;
+    justify-content: center; z-index: 9999;
+}
+
+/* ── Table ── */
+.table { border-radius: 12px; overflow: hidden; }
+.table thead { background: #1a1a2e; color: white; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .hero-section h1 { font-size: 2rem; }
+    .sidebar { min-height: auto; }
+}

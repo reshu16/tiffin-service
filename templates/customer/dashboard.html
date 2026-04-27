@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard — TiffinBox{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="fw-bold" id="welcome-msg">Welcome back! 👋</h2>
+            <p class="text-muted">Here's your tiffin summary</p>
+        </div>
+        <div class="col-auto">
+            <a href="/menu" class="btn btn-primary">
+                <i class="bi bi-plus me-2"></i>Order Now
+            </a>
+        </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card stat-card shadow-sm p-4 text-center">
+                <div class="stat-icon text-primary">📦</div>
+                <div class="display-6 fw-bold mt-2" id="stat-total">—</div>
+                <div class="text-muted small">Total Orders</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card shadow-sm p-4 text-center">
+                <div class="stat-icon text-success">✅</div>
+                <div class="display-6 fw-bold mt-2" id="stat-delivered">—</div>
+                <div class="text-muted small">Delivered</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card shadow-sm p-4 text-center">
+                <div class="stat-icon text-warning">⏳</div>
+                <div class="display-6 fw-bold mt-2" id="stat-pending">—</div>
+                <div class="text-muted small">Pending</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card stat-card shadow-sm p-4 text-center">
+                <div class="stat-icon text-info">📋</div>
+                <div class="display-6 fw-bold mt-2" id="stat-sub">—</div>
+                <div class="text-muted small">Subscription</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Recent Orders -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Recent Orders</h5>
+                    <a href="/orders" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div id="recent-orders">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Subscription + Profile -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm p-4 mb-4">
+                <h5 class="fw-bold mb-3">My Subscription</h5>
+                <div id="sub-info">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary spinner-border-sm"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm p-4">
+                <h5 class="fw-bold mb-3">My Profile</h5>
+                <div id="profile-info">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary spinner-border-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Redirect if not logged in
+if (!isLogged()) window.location.href = '/login';
+
+const user = getUser();
+if (user) {
+    document.getElementById('welcome-msg').textContent =
+        `Welcome back, ${user.full_name.split(' ')[0]}! 👋`;
+}
+
+async function loadDashboard() {
+    try {
+        // Load orders
+        const data   = await apiRequest('/orders/my', 'GET', null, true);
+        const orders = data.orders;
+
+        // Stats
+        document.getElementById('stat-total').textContent     = orders.length;
+        document.getElementById('stat-delivered').textContent =
+            orders.filter(o => o.status === 'delivered').length;
+        document.getElementById('stat-pending').textContent   =
+            orders.filter(o => ['pending','confirmed','preparing',
+                                'out_for_delivery'].includes(o.status)).length;
+
+        // Recent orders (last 5)
+        const el = document.getElementById('recent-orders');
+        if (!orders.length) {
+            el.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-bag-x" style="font-size:2.5rem"></i>
+                    <p class="mt-2">No orders yet</p>
+                    <a href="/menu" class="btn btn-primary btn-sm">Order Now</a>
+                </div>`;
+        } else {
+            el.innerHTML = orders.slice(0, 5).map(order => `
+                <div class="d-flex align-items-center gap-3 py-3 border-bottom">
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">Order #${order.order_id}</div>
+                        <div class="text-muted small">${formatDate(order.order_date)} ·
+                            ${order.items?.length || 0} item(s)</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold text-primary">${formatRupee(order.total_amount)}</div>
+                        <div class="mt-1">${statusBadge(order.status)}</div>
+                    </div>
+                </div>`).join('');
+        }
+
+    } catch (e) {
+        document.getElementById('recent-orders').innerHTML =
+            '<p class="text-muted text-center">Could not load orders.</p>';
+    }
+
+    // Load subscription
+    try {
+        const subData = await apiRequest('/subscription/my', 'GET', null, true);
+        const active  = subData.subscriptions.find(s => s.status === 'active');
+        const el      = document.getElementById('sub-info');
+
+        document.getElementById('stat-sub').textContent = active ? 'Active' : 'None';
+
+        if (active) {
+            el.innerHTML = `
+                <div class="text-center">
+                    <span class="badge bg-success px-3 py-2 mb-2">Active</span>
+                    <h5 class="fw-bold">${active.plan_name}</h5>
+                    <p class="text-muted small mb-1">
+                        <i class="bi bi-calendar me-1"></i>
+                        ${active.start_date} → ${active.end_date}
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center mt-3">
+                        <button class="btn btn-warning btn-sm"
+                                onclick="pauseSub(${active.subscription_id})">
+                            <i class="bi bi-pause me-1"></i>Pause
+                        </button>
+                        <button class="btn btn-danger btn-sm"
+                                onclick="cancelSub(${active.subscription_id})">
+                            <i class="bi bi-x me-1"></i>Cancel
+                        </button>
+                    </div>
+                </div>`;
+        } else {
+            el.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="bi bi-calendar-x" style="font-size:2rem"></i>
+                    <p class="mt-2 small">No active subscription</p>
+                    <a href="/plans" class="btn btn-primary btn-sm">Subscribe Now</a>
+                </div>`;
+        }
+    } catch (e) {}
+
+    // Profile info
+    try {
+        const userData = await apiRequest('/auth/me', 'GET', null, true);
+        const u        = userData.user;
+        document.getElementById('profile-info').innerHTML = `
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center
+                     justify-content-center fw-bold"
+                     style="width:48px;height:48px;font-size:1.3rem">
+                    ${u.full_name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <div class="fw-bold">${u.full_name}</div>
+                    <div class="text-muted small">${u.email}</div>
+                </div>
+            </div>
+            <div class="text-muted small">
+                <i class="bi bi-telephone me-2"></i>${u.phone}<br>
+                <i class="bi bi-geo-alt me-2 mt-1 d-inline-block"></i>${u.address || 'No address set'}
+            </div>`;
+    } catch (e) {}
+}
+
+async function pauseSub(id) {
+    if (!confirm('Pause your subscription?')) return;
+    try {
+        await apiRequest(`/subscription/${id}/pause`, 'PUT', null, true);
+        showToast('Subscription paused', 'warning');
+        loadDashboard();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+async function cancelSub(id) {
+    if (!confirm('Cancel your subscription? This cannot be undone.')) return;
+    try {
+        await apiRequest(`/subscription/${id}/cancel`, 'PUT', null, true);
+        showToast('Subscription cancelled', 'danger');
+        loadDashboard();
+    } catch (e) { showToast(e.message, 'danger'); }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

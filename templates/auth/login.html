@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Login — TiffinBox{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-card card shadow-lg mx-auto">
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <div style="font-size:3rem">🍱</div>
+                <h3 class="fw-bold mt-2">Welcome Back</h3>
+                <p class="text-muted">Login to your TiffinBox account</p>
+            </div>
+
+            <form id="login-form">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Email Address</label>
+                    <input type="email" id="email" class="form-control"
+                           placeholder="you@example.com" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Password</label>
+                    <div class="input-group">
+                        <input type="password" id="password" class="form-control"
+                               placeholder="Enter your password" required>
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="togglePassword()">
+                            <i class="bi bi-eye" id="eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 fs-5" id="login-btn">
+                    Login
+                </button>
+            </form>
+
+            <p class="text-center mt-4 text-muted">
+                Don't have an account?
+                <a href="/register" class="text-primary fw-semibold">Register here</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Redirect if already logged in
+if (isLogged()) redirectByRole(getUser()?.role);
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Logging in...';
+    btn.disabled  = true;
+
+    try {
+        const data = await apiRequest('/auth/login', 'POST', {
+            email:    document.getElementById('email').value,
+            password: document.getElementById('password').value
+        });
+
+        localStorage.setItem('access_token',  data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user',          JSON.stringify(data.user));
+
+        showToast('Login successful! Redirecting...', 'success');
+        setTimeout(() => redirectByRole(data.user.role), 1000);
+
+    } catch (err) {
+        showToast(err.message || 'Login failed', 'danger');
+        btn.innerHTML = 'Login';
+        btn.disabled  = false;
+    }
+});
+
+function togglePassword() {
+    const input = document.getElementById('password');
+    const icon  = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+        input.type     = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type     = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
+</script>
+{% endblock %}

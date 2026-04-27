@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}TiffinBox — Fresh Homemade Tiffins{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="hero-section text-white">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <span class="badge bg-white text-warning fs-6 mb-3 px-3 py-2">
+                    🍱 Fresh & Healthy
+                </span>
+                <h1 class="mb-4">Homemade Tiffins <br>Delivered Daily</h1>
+                <p class="lead mb-4 opacity-75">
+                    Subscribe to our daily tiffin service and enjoy fresh,
+                    nutritious home-cooked meals delivered right to your door.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="/menu" class="btn btn-light btn-lg px-4 fw-semibold">
+                        <i class="bi bi-grid me-2"></i>View Menu
+                    </a>
+                    <a href="/plans" class="btn btn-outline-light btn-lg px-4">
+                        <i class="bi bi-calendar-check me-2"></i>Subscribe Now
+                    </a>
+                </div>
+                <!-- Stats -->
+                <div class="row mt-5 g-3">
+                    <div class="col-4 text-center">
+                        <h3 class="fw-bold mb-0">500+</h3>
+                        <small class="opacity-75">Happy Customers</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <h3 class="fw-bold mb-0">20+</h3>
+                        <small class="opacity-75">Menu Items</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <h3 class="fw-bold mb-0">4.8★</h3>
+                        <small class="opacity-75">Rating</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center d-none d-lg-block">
+                <div style="font-size:18rem; line-height:1; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.3))">
+                    🍱
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it Works -->
+<section class="py-5 bg-white">
+    <div class="container">
+        <h2 class="text-center fw-bold mb-2">How It Works</h2>
+        <p class="text-center text-muted mb-5">Get your tiffin in 3 simple steps</p>
+        <div class="row g-4 text-center">
+            <div class="col-md-4">
+                <div class="card shadow-sm p-4">
+                    <div class="display-4 mb-3">📋</div>
+                    <h5 class="fw-bold">1. Choose a Plan</h5>
+                    <p class="text-muted">Pick daily, weekly, or monthly subscription that suits your needs.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm p-4">
+                    <div class="display-4 mb-3">👨‍🍳</div>
+                    <h5 class="fw-bold">2. We Cook Fresh</h5>
+                    <p class="text-muted">Our kitchen prepares fresh homemade meals every morning.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm p-4">
+                    <div class="display-4 mb-3">🛵</div>
+                    <h5 class="fw-bold">3. Get Delivered</h5>
+                    <p class="text-muted">Your tiffin is delivered hot to your doorstep on time.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Menu -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center fw-bold mb-2">Today's Menu</h2>
+        <p class="text-center text-muted mb-5">Fresh meals prepared daily</p>
+        <div class="row g-4" id="featured-menu">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary"></div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="/menu" class="btn btn-primary btn-lg px-5">View Full Menu</a>
+        </div>
+    </div>
+</section>
+
+<!-- Plans Preview -->
+<section class="py-5 bg-white">
+    <div class="container">
+        <h2 class="text-center fw-bold mb-2">Subscription Plans</h2>
+        <p class="text-center text-muted mb-5">Choose what works best for you</p>
+        <div class="row g-4 justify-content-center" id="plans-preview">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load featured menu (first 3 items)
+async function loadFeaturedMenu() {
+    try {
+        const data  = await apiRequest('/menu/');
+        const items = data.menu.slice(0, 3);
+        const el    = document.getElementById('featured-menu');
+
+        if (!items.length) {
+            el.innerHTML = '<p class="text-center text-muted">No items available</p>';
+            return;
+        }
+
+        el.innerHTML = items.map(item => `
+            <div class="col-md-4">
+                <div class="card shadow-sm menu-card h-100">
+                    <div class="position-relative">
+                        <img src="${item.image_url || '/static/images/default-food.jpg'}"
+                             class="card-img-top" alt="${item.name}">
+                        <span class="badge badge-${item.category} position-absolute top-0 end-0 m-2 px-2 py-1">
+                            ${item.category}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold">${item.name}</h5>
+                        <p class="card-text text-muted small">${item.description || ''}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <span class="fs-5 fw-bold text-primary">${formatRupee(item.price)}</span>
+                            <a href="/menu" class="btn btn-primary btn-sm px-3">Order Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('featured-menu').innerHTML =
+            '<p class="text-center text-muted">Could not load menu.</p>';
+    }
+}
+
+// Load plans preview
+async function loadPlans() {
+    try {
+        const data  = await apiRequest('/subscription/plans');
+        const el    = document.getElementById('plans-preview');
+
+        el.innerHTML = data.plans.map((plan, i) => `
+            <div class="col-md-3">
+                <div class="card shadow-sm text-center p-4 h-100 ${i === 2 ? 'border-primary border-2' : ''}">
+                    ${i === 2 ? '<span class="badge bg-primary mb-2">Most Popular</span>' : ''}
+                    <h5 class="fw-bold">${plan.plan_name}</h5>
+                    <div class="display-6 fw-bold text-primary my-3">${formatRupee(plan.price)}</div>
+                    <p class="text-muted small">${plan.description || ''}</p>
+                    <p class="text-muted small">${plan.meals_per_day} meal(s)/day</p>
+                    <a href="/plans" class="btn btn-primary mt-3 w-100">Choose Plan</a>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('plans-preview').innerHTML =
+            '<p class="text-center text-muted">Could not load plans.</p>';
+    }
+}
+
+loadFeaturedMenu();
+loadPlans();
+</script>
+{% endblock %}
